@@ -1,22 +1,44 @@
-FROM golang:1.26-alpine AS builder
-WORKDIR /app
+# ============================================================
+# Stage 1: Build the picoclaw binary
+# ============================================================
+FROM golang:1.26.0-alpine AS builder
 
-# 1. Instalamos compiladores de C y la famosa librería olm para desarrollo
-RUN apk add --no-cache gcc musl-dev olm-dev
+RUN apk add --no-cache git make
 
+WORKDIR /src
+
+# Cache dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source and build
 COPY . .
+RUN make build
 
-# 2. Encendemos CGO porque PicoClaw lo exige
-ENV CGO_ENABLED=1
+# ============================================================
+# Stage 2: Node.js-based runtime with full MCP support
+# ============================================================
+FROM node:24-alpine3.23
 
-RUN mkdir -p cmd/picoclaw/internal/onboard/workspace && touch cmd/picoclaw/internal/onboard/workspace/dummy.txt
-RUN go build -o picoclaw ./cmd/picoclaw
+# Install runtime dependencies
+RUN apk add --no-cache \
+  ca-certificates \
+  curl \
+  git \
+  python3 \
+  py3-pip
 
-FROM alpine:latest
-WORKDIR /app
+# Install uv and symlink to system path
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+  ln -s /root/.local/bin/uv /usr/local/bin/uv && \
+  ln -s /root/.local/bin/uvx /usr/local/bin/uvx && \
+  uv --version
 
-# 3. Instalamos la librería olm normal para que el bot pueda ejecutarse
-RUN apk add --no-cache ca-certificates olm
+# Copy binary
+COPY --from=builder /src/build/picoclaw /usr/local/bin/picoclaw
 
-COPY --from=builder /app/picoclaw .
-CMD ["./picoclaw", "gateway"]
+# Create picoclaw home directory
+RUN /usr/local/bin/picoclaw onboard
+
+ENTRYPOINT ["picoclaw"]
+CMD ["gateway"]
