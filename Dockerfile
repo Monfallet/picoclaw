@@ -40,5 +40,4 @@ COPY --from=builder /src/build/picoclaw /usr/local/bin/picoclaw
 # Create picoclaw home directory
 RUN /usr/local/bin/picoclaw onboard
 
-ENTRYPOINT ["picoclaw"]
-CMD ["sh", "-c", "cp /etc/secrets/config.json /root/.picoclaw/config.json 2>/dev/null || true && picoclaw gateway"]
+CMD sh -c "cp /etc/secrets/config.json /root/.picoclaw/config.json 2>/dev/null || true && picoclaw gateway"
