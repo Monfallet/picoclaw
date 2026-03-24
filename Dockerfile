@@ -41,4 +41,4 @@ COPY --from=builder /src/build/picoclaw /usr/local/bin/picoclaw
 RUN /usr/local/bin/picoclaw onboard
 
 ENTRYPOINT ["picoclaw"]
-CMD ["gateway"]
+CMD ["sh", "-c", "cp /etc/secrets/config.json /root/.picoclaw/config.json 2>/dev/null || true && picoclaw gateway"]
